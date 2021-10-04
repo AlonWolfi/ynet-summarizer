@@ -2,7 +2,6 @@ import json
 import os
 import pickle
 import warnings
-from multiprocessing import Pool
 from pathlib import Path
 from typing import Union
 
@@ -121,10 +120,27 @@ def read_data(file_path: Union[str, Path, list, dict, set], encoding: str = "utf
     return data
 
 
-def multiprocess(l, f, n_jobs=-1, as_series: bool = False):
+# debug
+def debug(*args, **kwargs):
+    from icecream import ic
+    ic(*args, **kwargs)
+
+
+def multiprocess(l, f, n_jobs=-1, as_series: bool = False, use_tqdm=False):
+    from multiprocessing import Pool
+    import tqdm
     with Pool(n_jobs) as p:
-        output = p.map(f, l)
+        if use_tqdm:
+            output = list(tqdm.tqdm(p.imap(f, l), total=len(l)))
+        else:
+            output = p.map(f, l)
     if as_series:
         return pd.Series(output)
     else:
         return output
+
+
+def hash(string: str):
+    import hashlib
+    hashed_str = hashlib.md5(string.encode())
+    return hashed_str.hexdigest()
