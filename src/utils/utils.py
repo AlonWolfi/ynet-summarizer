@@ -2,10 +2,12 @@ import json
 import os
 import pickle
 import warnings
+from multiprocessing import Pool
 from pathlib import Path
 from typing import Union
 
 import matplotlib.pyplot as plt
+import pandas as pd
 from matplotlib.pyplot import Figure
 
 from config import PROJECT_NAME
@@ -117,3 +119,12 @@ def read_data(file_path: Union[str, Path, list, dict, set], encoding: str = "utf
         with open(file_path, 'r+', encoding=encoding) as file:
             data = file.read()
     return data
+
+
+def multiprocess(l, f, n_jobs=-1, as_series: bool = False):
+    with Pool(n_jobs) as p:
+        output = p.map(f, l)
+    if as_series:
+        return pd.Series(output)
+    else:
+        return output
