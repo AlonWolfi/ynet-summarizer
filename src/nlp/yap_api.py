@@ -40,7 +40,7 @@ class YapApi(object):
     def __init__(self):
         pass
 
-    def run(self, text: str, ip: str):
+    def run(self, text: str, ip: str = '127.0.0.1:8000'):
         """
         text: the text to be parsed.
         ip: YAP server IP, with port (default is 8000), if localy installed then 127.0.0.1:8000
