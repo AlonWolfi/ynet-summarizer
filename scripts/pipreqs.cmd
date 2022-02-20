@@ -1,2 +1,2 @@
 cd ..
-pipreqs src --savepath requirements.txt --encoding utf8 --force
+pipreqs src --savepath requirements.txt --encoding utf8 --force --no-pin

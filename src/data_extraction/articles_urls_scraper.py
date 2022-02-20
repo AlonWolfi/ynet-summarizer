@@ -36,6 +36,7 @@ def _scrape_articles():
 
 
 import os
+
 from config import DATA_DIR
 from utils.utils import read_data, save_data
 

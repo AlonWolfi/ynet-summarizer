@@ -1,10 +1,10 @@
 import os
 
 import pandas as pd
-
 from config import DATA_DIR
+from utils.utils import hash, read_data
+
 from data_extraction.articles_urls_scraper import get_article_urls
-from utils.utils import read_data, hash
 
 
 def get_articles(processed=False):

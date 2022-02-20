@@ -1,8 +1,9 @@
-import torch
-import numpy as  np
 from collections import Counter
 
-from src.modeling.tokenizer import  START_TOKEN, END_TOKEN
+import numpy as np
+import torch
+from src.modeling.tokenizer import END_TOKEN, START_TOKEN
+
 
 class Dataset(torch.utils.data.Dataset):
     def __init__(
@@ -21,8 +22,10 @@ class Dataset(torch.utils.data.Dataset):
         self.uniq_words = self.get_uniq_words(self.tokenized_text)
         print(f'Started dataset with {len(self.uniq_words)} words')
 
-        self.index_to_word = {index: word for index, word in enumerate(self.uniq_words)}
-        self.word_to_index = {word: index for index, word in enumerate(self.uniq_words)}
+        self.index_to_word = {index: word for index,
+                              word in enumerate(self.uniq_words)}
+        self.word_to_index = {word: index for index,
+                              word in enumerate(self.uniq_words)}
 
         self.X = self.get_X()
 
