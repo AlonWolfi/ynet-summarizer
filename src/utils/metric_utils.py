@@ -71,4 +71,4 @@ def rouge(tokens_true, tokens_pred, n: int = None):
 def bleu(tokens_true, tokens_pred, k=3):
     # k: [1,2,3]
     weights = [1/k] * k + (4-k) * [0]
-    return sentence_bleu([tokens_pred], tokens_true, weights=weights)
+    return sentence_bleu([tokens_true], tokens_pred, weights=weights)
