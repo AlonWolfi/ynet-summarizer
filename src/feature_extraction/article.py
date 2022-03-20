@@ -38,6 +38,7 @@ def tokenize_sentence(s, stop_words = []):
     tokens = s.split(' ')
     tokens = [c for c in tokens if c not in stop_words]
     return tokens
+    
 def tokenize_article(art, stop_words = []):
     art_tokenized = pd.Series(index=art.index, name=art.name)
     art_tokenized['main_title'] = tokenize_sentence(art['main_title'], stop_words)

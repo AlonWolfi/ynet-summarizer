@@ -1,18 +1,32 @@
+from tkinter.messagebox import NO
 import networkx as nx
 import numpy as np
 import pandas as pd
 from nltk.cluster.util import cosine_distance
 from tqdm.notebook import tqdm
+import gensim
 
 from .base_model import BaseModel
 
 
 class TextRankModel(BaseModel):
 
-    def __init__(self, stop_words):
+    def __init__(self, stop_words, model=None, weight=None):
         self.stop_words = stop_words
+        self.model = model # model to use with textrank
+        self.weight = weight # weight function to use with model
 
+    
     def _sentence_similarity(self, sent1, sent2, stopwords=None):
+        if self.model is None:
+            self._sentence_similarity_base(sent1,sent2,stopwords)
+        elif self.model == 'word2vec':
+            self._sentence_similarity_with_word_embedding(sent1,sent2,stopwords)
+        else:
+            raise NotImplementedError()
+
+
+    def _sentence_similarity_base(self, sent1, sent2, stopwords=None):
         if stopwords is None:
             stopwords = []
 
@@ -24,6 +38,46 @@ class TextRankModel(BaseModel):
         vector1 = [0] * len(all_words)
         vector2 = [0] * len(all_words)
 
+        # set default weight function
+        if self.weight is None:
+            self.weight = lambda x: x
+
+        #load word2vec model
+        model = gensim.models.Word2Vec.load('model/word2vec.model', mmap='r')
+        wv = model.wv
+
+        # build the vector for the first sentence
+        for w1 in sent1:
+            if w1 in stopwords:
+                continue
+            for w2 in sent2:
+                if w2 in stopwords:
+                    continue
+                vector1[all_words.index(w1)] += self.weight(wv.similarity(w1,w2))
+
+        # build the vector for the second sentence
+        for w2 in sent2:
+            if w2 in stopwords:
+                continue
+            for w1 in sent1:
+                if w1 in stopwords:
+                    continue
+                vector2[all_words.index(w2)] += self.weight(wv.similarity(w2,w1))
+
+        return 1 - cosine_distance(vector1, vector2)
+
+    def _sentence_similarity_with_word_embedding(self, sent1, sent2, stopwords=None):
+        if stopwords is None:
+            stopwords = []
+
+        sent1 = [w.lower() for w in sent1]
+        sent2 = [w.lower() for w in sent2]
+
+        all_words = list(set(sent1 + sent2))
+
+        vector1 = [0] * len(all_words)
+        vector2 = [0] * len(all_words)
+        
         # build the vector for the first sentence
         for w in sent1:
             if w in stopwords:
