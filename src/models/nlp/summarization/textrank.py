@@ -5,28 +5,33 @@ import pandas as pd
 from nltk.cluster.util import cosine_distance
 from tqdm.notebook import tqdm
 import gensim
-
+from config import PROJECT_DIR
+from os import path
 from .base_model import BaseModel
 
 
 class TextRankModel(BaseModel):
 
-    def __init__(self, stop_words, model=None, weight=None):
+    def __init__(self, stop_words, type=None, weight=None, N=1):
         self.stop_words = stop_words
-        self.model = model # model to use with textrank
+        self.type = type # model to use with textrank
         self.weight = weight # weight function to use with model
-
+        self.N = N # number of sentences
+        self.model = None
+        if type == 'word2vec':
+            #load word2vec model
+            self.model = gensim.models.Word2Vec.load(path.join(PROJECT_DIR, 'word2vec/word2vec.model'), mmap='r')
     
     def _sentence_similarity(self, sent1, sent2, stopwords=None):
-        if self.model is None:
-            self._sentence_similarity_base(sent1,sent2,stopwords)
-        elif self.model == 'word2vec':
-            self._sentence_similarity_with_word_embedding(sent1,sent2,stopwords)
+        if self.type is None:
+            return self._sentence_similarity_base(sent1,sent2,stopwords)
+        elif self.type == 'word2vec':
+            return self._sentence_similarity_with_word_embedding(sent1,sent2,stopwords)
         else:
             raise NotImplementedError()
 
 
-    def _sentence_similarity_base(self, sent1, sent2, stopwords=None):
+    def _sentence_similarity_with_word_embedding(self, sent1, sent2, stopwords=None):
         if stopwords is None:
             stopwords = []
 
@@ -42,31 +47,40 @@ class TextRankModel(BaseModel):
         if self.weight is None:
             self.weight = lambda x: x
 
-        #load word2vec model
-        model = gensim.models.Word2Vec.load('model/word2vec.model', mmap='r')
-        wv = model.wv
+        # get word embeddings
+        wv = self.model.wv
 
         # build the vector for the first sentence
         for w1 in sent1:
             if w1 in stopwords:
                 continue
-            for w2 in sent2:
-                if w2 in stopwords:
-                    continue
-                vector1[all_words.index(w1)] += self.weight(wv.similarity(w1,w2))
+            vector1[all_words.index(w1)] += 1
+
+            # add partial score for similar words
+            if  wv.has_index_for(w1):
+                for w2 in sent2:
+                    if w2 in stopwords:
+                        continue
+                    if wv.has_index_for(w2):
+                        vector1[all_words.index(w2)] = max(self.weight(wv.similarity(w1,w2)), vector1[all_words.index(w2)])
 
         # build the vector for the second sentence
         for w2 in sent2:
             if w2 in stopwords:
                 continue
-            for w1 in sent1:
-                if w1 in stopwords:
-                    continue
-                vector2[all_words.index(w2)] += self.weight(wv.similarity(w2,w1))
+            vector2[all_words.index(w2)] += 1
+
+            # add partial score for similar words
+            if wv.has_index_for(w2):
+                for w1 in sent1:
+                    if w1 in stopwords:
+                        continue
+                    if wv.has_index_for(w1):
+                        vector2[all_words.index(w1)] = max(self.weight(wv.similarity(w2,w1)), vector2[all_words.index(w1)])
 
         return 1 - cosine_distance(vector1, vector2)
 
-    def _sentence_similarity_with_word_embedding(self, sent1, sent2, stopwords=None):
+    def _sentence_similarity_base(self, sent1, sent2, stopwords=None):
         if stopwords is None:
             stopwords = []
 
@@ -102,6 +116,7 @@ class TextRankModel(BaseModel):
                     continue
                 similarity_matrix[idx1][idx2] = self._sentence_similarity(
                     sentences[idx1], sentences[idx2], stop_words)
+        #print(similarity_matrix)
         return similarity_matrix
 
     def _choose_best_sentence(self, sentences_list, article, stop_words):
@@ -121,7 +136,7 @@ class TextRankModel(BaseModel):
             ((scores[i], s) for i, s in enumerate(sentences)), reverse=True)
         ranks = np.argsort(list(scores.values()))[::-1]
         # Step 5 - Offcourse, output the summarize text
-        return ranks[0]
+        return ranks[:self.N]
 
     def fit(self, articles_tokenized, articles_raw, y=None, *args, **kwargs):
         pass
@@ -137,10 +152,11 @@ class TextRankModel(BaseModel):
         for article_tokenized, article_raw in tqdm(list(zip(articles_tokenized, articles_raw))):
             chosen_sentence_idx = self._choose_best_sentence(
                 article_tokenized, article_raw, self.stop_words)
+            raw_sentences = article_raw.split('.')
             summaries.append({
-                'summary_tokens': article_tokenized[chosen_sentence_idx],
-                'summary': article_raw.split('.')[chosen_sentence_idx]
-            })
+                    'summary_tokens': [article_tokenized[idx] for idx in chosen_sentence_idx][0],
+                    'summary': [raw_sentences[idx] for idx in chosen_sentence_idx][0]
+                })
         return pd.DataFrame(
             data=summaries,
             index=articles_raw.index
