@@ -138,3 +138,4 @@ word2vec/.DS_Store
 word2vec/word2vec.model
 word2vec/word2vec.model.syn1neg.npy
 word2vec/word2vec.model.wv.vectors.npy
+doc2vec/*
