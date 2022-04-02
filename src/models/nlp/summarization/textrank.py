@@ -29,6 +29,10 @@ class TextRankModel(BaseModel):
         elif type == 'doc2vec':
             #load word2vec model
             self.model = gensim.models.Doc2Vec.load(path.join(PROJECT_DIR, 'doc2vec/doc2vec.model'), mmap='r')
+        elif type == 'tfidf':
+            self.model = gensim.models.TfidfModel.load(path.join(PROJECT_DIR, 'tfidf/tfidf.model'), mmap='r')
+            self.dict = gensim.corpora.Dictionary.load_from_text(path.join(PROJECT_DIR, 'tfidf/dict.txt'))
+
     
     
     def _sentence_similarity(self, sent1, sent2, stopwords=None):
@@ -38,6 +42,8 @@ class TextRankModel(BaseModel):
             return self._sentence_similarity_with_word_embedding(sent1,sent2,stopwords)
         elif self.type == 'doc2vec':
             return self._sentence_similarity_with_sentence_embedding(sent1,sent2,stopwords)
+        elif self.type == 'tfidf':
+            return self._sentence_similarity_tfidf(sent1,sent2,stopwords)
         else:
             raise NotImplementedError()
 
@@ -47,6 +53,7 @@ class TextRankModel(BaseModel):
             stopwords = []
 
         sent1 = [w.lower() for w in sent1]
+
         sent2 = [w.lower() for w in sent2]
 
         all_words = list(set(sent1 + sent2))
@@ -107,6 +114,39 @@ class TextRankModel(BaseModel):
         sent2 = [w.lower() for w in sent2]
 
         return self.weight(self.model.similarity_unseen_docs(sent1,sent2, epochs=100))
+
+    def _sentence_similarity_tfidf(self, sent1, sent2, stopwords=None):
+        if stopwords is None:
+            stopwords = []
+
+        sent1 = [w.lower() for w in sent1]
+        sent1_weights = {
+            w[0]: w[1] for w in self.model[self.dict.doc2bow(sent1)]
+        }
+
+        sent2 = [w.lower() for w in sent2]
+        sent2_weights = {
+            w[0]: w[1] for w in self.model[self.dict.doc2bow(sent2)]
+        }
+
+        all_words = list(set(sent1 + sent2))
+
+        vector1 = [0] * len(all_words)
+        vector2 = [0] * len(all_words)
+        
+        # build the vector for the first sentence
+        for w in sent1:
+            if w in stopwords:
+                continue
+            vector1[all_words.index(w)] += 1 * sent1_weights[self.dict.token2id[w]]
+
+        # build the vector for the second sentence
+        for w in sent2:
+            if w in stopwords:
+                continue
+            vector2[all_words.index(w)] += 1 * sent2_weights[self.dict.token2id[w]]
+
+        return 1 - cosine_distance(vector1, vector2)
 
     def _sentence_similarity_base(self, sent1, sent2, stopwords=None):
         if stopwords is None:
